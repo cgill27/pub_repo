@@ -1,0 +1,142 @@
+pipeline {
+    environment {
+        APPLICATION_NAME = "applicationname"
+        DEPLOYMENT_CONFIG = "CodeDeployDefault.OneAtATime"
+        DEPLOYMENT_GROUP = "deploymentgroupname"
+        S3_REGION = "us-east-2"
+        S3_CONFIG_BUCKET = "s3bucket"
+        S3_CD_BUCKET = "s3bucket"
+        WEBROOT_ZIP = "release.zip"
+        RELEASE_DIR_IN_WEBROOT_ZIP = "release"
+        CD_ARCHIVE_NAME = "codedeploy.zip"
+    }
+
+    options {
+      timestamps()
+    }
+
+    agent any
+
+    stages{
+        stage('Test AWS creds with S3') {
+           steps {
+               catchError {
+                   withAWS(credentials: 'aws-api-key', region: 'us-east-2') {
+                        sh "aws s3 ls s3://${env.S3_CD_BUCKET}/"
+                   }
+               }
+           }
+           post {
+                success {
+                    echo 'AWS credentials for S3 access are good'
+                }
+                failure {
+                    echo 'Failed to access S3 bucket with AWS creds!'
+                    error('Failed to access S3 bucket with AWS creds!')
+                }
+            }
+        }
+
+        stage('Get webroot zip and config files from S3') {
+            steps {
+               catchError {
+                   withAWS(credentials: 'aws-api-key', region: 'us-east-2') {
+                        sh "aws s3 cp s3://${env.S3_CD_BUCKET}/codedeploy/${env.WEBROOT_ZIP} ."
+                        sh "aws s3 cp s3://${env.S3_CD_BUCKET}/codedeploy/afterInstall.sh ."
+                        sh "aws s3 cp s3://${env.S3_CD_BUCKET}/codedeploy/beforeInstall.sh ."
+                        sh "aws s3 cp s3://${env.S3_CD_BUCKET}/codedeploy/appspec.yml ."
+                   }
+               }
+           }
+           post {
+                success {
+                    echo 'Successfully downloaded S3 files'
+                }
+                failure {
+                    echo 'Failed to download files from S3!'
+                    error('Failed to download files from S3!')
+                }
+            }
+        }
+
+        stage('Unzip webroot zip and use config files') {
+            steps {
+               catchError {
+                    sh "unzip ${env.WEBROOT_ZIP}"
+                    sh "rm -f ${env.WEBROOT_ZIP}"
+                    sh "sed -i 's/webroot/release/g' appspec.yml"
+               }
+            }
+            post {
+                success {
+                    echo 'Successfully unzipped webroot file'
+                }
+                failure {
+                    echo 'Failed to unzip webroot file!'
+                    error('Failed to unzip webroot file!')
+                }
+            }
+        }
+
+        stage('Make codedeploy zip file') {
+            steps {
+               catchError {
+                   sh "zip -r ${env.CD_ARCHIVE_NAME} . -x *.git* -x *.DS_Store*"
+               }
+            }
+            post {
+                success {
+                    echo 'Created codedeploy zip file successfully'
+                }
+                failure {
+                    echo 'Creating codedeploy zip failed!'
+                    error('Creating codedeploy zip failed!')
+                }
+            }
+        }
+
+       stage('Upload codedeploy zip file To S3') {
+           steps {
+               catchError {
+                   withAWS(credentials: 'aws-api-key', region: 'us-east-2') {
+                        sh "aws s3 cp ./${env.CD_ARCHIVE_NAME} s3://${env.S3_CD_BUCKET}/"
+                   }
+               }
+           }
+           post {
+               success {
+                   echo 'CodeDeploy zip file uploaded to S3 successfully'
+               }
+               failure {
+                   echo 'CodeDeploy zip file upload to S3 failed!'
+                   error('CodeDeploy zip file upload to S3 failed!')
+               }
+           }
+       }
+
+       stage ('Deploy To EC2 using CodeDeploy') {
+                steps {
+                    catchError{
+                        withAWS(credentials: 'aws-api-key', region: 'us-east-2') {
+                            sh "aws deploy create-deployment --application-name ${env.APPLICATION_NAME} --deployment-config-name ${env.DEPLOYMENT_CONFIG} --deployment-group-name ${env.DEPLOYMENT_GROUP} --file-exists-behavior OVERWRITE --s3-location bucket=${env.S3_CD_BUCKET},key=${env.CD_ARCHIVE_NAME},bundleType=zip"
+                        }
+                    }
+                }
+                post {
+                    success {
+                        echo 'CodeDeploy deployment to EC2 successful'
+                    }
+                    failure {
+                        echo 'CodeDeploy deployment to EC2 failed!'
+                        error('CodeDeploy deployment to EC2 failed!')
+                     }
+                }
+        }
+      }
+
+      post {
+            cleanup {
+                cleanWs()
+            }
+        }
+}

@@ -2,7 +2,7 @@
 
 # svnrepobkup.sh is a wrapper script around a python script that
 #   was created to dump the subversion repos and copy them to another server
-#   please do not modify this script without notifying Craig Gill
+#   please do not modify this script without notifying 
 #   11-24-2013
 
 PROGNAME=`basename $0`
@@ -65,8 +65,8 @@ function onerror() {
     # $1 = body of email
     # $2 = true/false whether to exit script
     # $3 = true/false whether to attach log to email
-    #RECIPIENT="craig@doctorsintraining.com"
-    #SUBJECT="Error running svndump.sh on subversion.dit.local"
+    #RECIPIENT="email@email.com"
+    #SUBJECT="Error running svndump.sh on hostname"
     BODY="$1"
     #echo "$BODY" | mail -s "$SUBJECT" "$RECIPIENT"
     sendemail "$BODY" "$3"
@@ -106,7 +106,6 @@ fi
 
 debug "Rsyncing to server..."
 # copy dump files off to another box
-#rsync -avz -e ssh -q /root/svnrepobkup/* cgill@x.x.x.x:/home/cgill/svnrepobkup
 CMD=`rsync -avz -e 'ssh -ax -c arcfour' -q --timeout=30 /root/svnrepobkup/* backup@x.x.x.x:/home/backup/subversion_backup/svnrepobkup`
 EXITCODE=$?
 if [ "${EXITCODE}" -eq 0 ]; then
@@ -135,7 +134,6 @@ if [ "${SKIPRSYNC}" == "false" ]; then
     fi 
     debug "Rsyncing to Crashplan..."
     # Don't preserve perms, owner, or groups when rsyncing to nfs mount
-    #CMD=`rsync -avzq --no-p --no-o --no-g /root/svnrepobkup/* /mnt/crashplan/bkup/aspenweb01/svnrepobkup`
     CMD=`rsync -avzq --no-p --no-o --no-g /root/svnrepobkup/* /mnt/crashplan/bkup/crashplan/subversion/svnrepobkup`
     EXITCODE=$?
     if [ "${EXITCODE}" -ne 0 ]; then

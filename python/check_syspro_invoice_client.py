@@ -9,7 +9,7 @@ This script scans recent xml files created by RAPI for the
 
 Last committed: $Date: 2014-10-23 17:44:34 -0500 (Thu, 23 Oct 2014) $
 Revision number: $Revision: 275 $
-Author: $Author: cgill $
+Author: $Author: $
 URL: $HeadURL: https://host/repo/check_syspro_invoice/check_syspro_invoice_client.py $
 
 """
@@ -75,7 +75,7 @@ parser.add_argument("-d", "--debuglevel", type=str, choices=["debug", "info", "w
 parser.add_argument("-f", "--filedir", type=str, help="Source directory where xml, indexfile, and error logs reside")
 parser.add_argument("-l", "--lastfilechecked", type=str, help="Use this file as the last file checked and check only newer ones")
 parser.add_argument("-p", "--ping", help="Perform ping to api listener first before running and only run if ping successful", action='store_true')
-parser.add_argument("-v", "--version", action="version", version="$Id: check_syspro_invoice_client.py 275 2014-10-23 22:44:34Z cgill $")
+parser.add_argument("-v", "--version", action="version", version="$Id: check_syspro_invoice_client.py 275 2014-10-23 22:44:34Z $")
 # Check for help argument and print help
 if "-h" in sys.argv or "--help" in sys.argv:
     printhelp()
@@ -93,7 +93,7 @@ if args.filedir and os.path.isdir(args.filedir):
         fileDir = fileDir.rstrip("/")
 else:
     # cli filedir not provided so use my testing directory
-    fileDir = "/home/cgill/t/outgoing"
+    fileDir = "/home/name/t/outgoing"
     if not os.path.isdir(fileDir):
         print "No 'fileDir' specified and testing directory does not exist!  Exiting script"
         quit(2)

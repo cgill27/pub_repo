@@ -3,7 +3,7 @@
 # This script wraps around cksfv from this website:
 # http://zakalwe.fi/~shd/foss/cksfv/
 #
-# Script created 8-15-2017 by Craig Gill
+# Script created 8-15-2017 by
 
 print_usage() {
     echo ""

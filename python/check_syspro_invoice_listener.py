@@ -8,7 +8,7 @@ an invoice number to lookup in the Syspro database via mssql and return results
 
 Last committed: $Date: 2014-10-23 16:38:33 -0500 (Thu, 23 Oct 2014) $
 Revision number: $Revision: 272 $
-Author: $Author: cgill $
+Author: $Author: $
 URL: $HeadURL: https://host/repo/check_syspro_invoice/check_syspro_invoice_listener.py $
 
 """
@@ -29,7 +29,7 @@ import logging
 # Get name, path, version of this script
 script_name = __file__
 script_path = os.path.dirname(os.path.abspath(__file__))
-script_version = "$Id: check_syspro_invoice_listener.py 272 2014-10-23 21:38:33Z cgill $"
+script_version = "$Id: check_syspro_invoice_listener.py 272 2014-10-23 21:38:33Z $"
 app = Flask(__name__)
 api = restful.Api(app)
 

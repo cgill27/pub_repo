@@ -12,7 +12,7 @@ External script requirements:
 
 Last committed: $Date: 2017-11-28 15:49:40 -0600 (Tue, 28 Nov 2017) $
 Revision number: $Revision: 410 $
-Author: $Author: cgill $
+Author: $Author: $
 URL: $HeadURL: https://localhost/video_encoding/transcode_video.py $
 
 """
@@ -54,7 +54,7 @@ print_log = True
 # Get name, path, version of this script
 script_name = __file__
 script_path = os.path.dirname(os.path.abspath(__file__))
-script_version = "$Id: transcode_video.py 410 2017-11-28 21:49:40Z cgill $"
+script_version = "$Id: transcode_video.py 410 2017-11-28 21:49:40Z $"
 
 
 def printhelp():
@@ -94,7 +94,7 @@ parser.add_argument("-o", "--outputdir", help="Full path to the output directory
 parser.add_argument("-m", "--metatitle", type=str, help="Video title meta tag")
 parser.add_argument("-d", "--debugLevel", type=str, choices=["debug", "info", "warning", "error", "critical"], help="Set debug level")
 parser.add_argument("-l", "--debugLog", type=str, help="Debug log file name if debugLevel is set")
-parser.add_argument("-v", "--version", action="version", version="$Id: transcode_video.py 410 2017-11-28 21:49:40Z cgill $")
+parser.add_argument("-v", "--version", action="version", version="$Id: transcode_video.py 410 2017-11-28 21:49:40Z $")
 # Check for help argument and print help
 if "-h" in sys.argv or "--help" in sys.argv:
     printhelp()

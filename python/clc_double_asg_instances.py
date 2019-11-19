@@ -20,7 +20,7 @@ requests
 
 To install clc_double_asg_instances.py requirements execute: sudo pip install --upgrade -r clc_double_asg_instances_requirements.txt
 
-Written June 2019 by Craig Gill
+Written June 2019 by
 
 """
 

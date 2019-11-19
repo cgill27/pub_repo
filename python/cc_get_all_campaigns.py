@@ -7,7 +7,7 @@ This script gets a list of all the campaigns at Constant Contact
 
 Last committed: $Date: 2014-10-13 13:54:30 -0500 (Mon, 13 Oct 2014) $
 Revision number: $Revision: 42 $
-Author: $Author: cgill $
+Author: $Author: $
 URL: $HeadURL: https://localhost/constant-contact/python/cc_get_all_campaigns.py $
 
 """
@@ -58,7 +58,7 @@ debug = True
 # Get name, path, version of this script
 script_name = __file__
 script_path = os.path.dirname(os.path.abspath(__file__))
-script_version = "$Id: cc_get_all_campaigns.py 42 2014-10-13 18:54:30Z cgill $"
+script_version = "$Id: cc_get_all_campaigns.py 42 2014-10-13 18:54:30Z $"
 
 # Constant Contact api uri, the rest of the url is completed below for pagination
 cc_api_url = 'https://api.constantcontact.com'
@@ -102,7 +102,7 @@ parser = argparse.ArgumentParser(description="Script gets a list of all the camp
 # Optional args
 parser.add_argument("-d", "--debugLevel", type=str, choices=["debug", "info", "warning", "error", "critical"], help="Set debug level")
 parser.add_argument("-l", "--debugLog", type=str, help="Debug log file name if debugLevel is set")
-parser.add_argument("-v", "--version", action="version", version="$Id: cc_get_all_campaigns.py 42 2014-10-13 18:54:30Z cgill $")
+parser.add_argument("-v", "--version", action="version", version="$Id: cc_get_all_campaigns.py 42 2014-10-13 18:54:30Z $")
 # Check for help argument and print help
 if "-h" in sys.argv or "--help" in sys.argv:
     printhelp()

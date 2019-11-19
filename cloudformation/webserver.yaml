@@ -1,0 +1,186 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: 'Launch a webserver using Amazon Linux EC2 instance'
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: 'Amazon EC2 Instance Configuration'
+        Parameters:
+          - InstanceSubnet1A
+          - InstanceSubnet1B
+          - ApplicationSecurityGroup
+          - KeyPair
+          - NameTag
+          - InstanceType
+          - EbsSize
+          - InstanceRole
+          - ALBTargetGroupARN
+          - ASGName
+          - ASGLaunchConfigurationName
+          - ASGMIN
+          - ASGMAX
+          - AMI
+          - ConfigFileName
+          - ConfigFileS3Bucket
+          - RDSCFTName
+
+Parameters:
+
+  InstanceSubnet1A:
+    Type: AWS::EC2::Subnet::Id
+    Description: 'Instance Subnet ID for 1A'
+
+  InstanceSubnet1B:
+    Type: AWS::EC2::Subnet::Id
+    Description: 'Instance Subnet ID for 1B'  
+
+  ApplicationSecurityGroup:
+    Type: AWS::EC2::SecurityGroup::Id
+    Description: 'Application instance Security Group ID (Created by security group CFT)'
+
+  KeyPair:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: 'Instance key pair name'
+
+  NameTag:
+    Type: String
+    Description: 'Instance Name'
+
+  InstanceType:
+    Type: String
+    Default: t3.medium
+    AllowedValues:
+      - t2.small
+      - t2.medium
+      - t2.large
+      - t2.xlarge
+      - t2.2xlarge
+      - t3.medium
+      - t3.large
+      - t3.xlarge
+      - t3.2xlarge
+      - c5.xlarge
+      - c5.2xlarge
+      - c5.4xlarge
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+    Description: 'Instance Type'
+
+  EbsSize:
+    Type: 'Number'
+    Default: 100
+    Description: 'Instance volume size in GB, minimum of 30'
+
+  InstanceRole:
+    Type: String
+    Description: 'EC2 Instance Role'
+
+  ALBTargetGroupARN:
+    Type: String
+    Description: 'The Application Load Balancer target group ARN'
+
+  ASGName:
+    Type: String
+    Description: 'Name of auto-scale group created by ALB CFT'
+
+  ASGLaunchConfigurationName:
+    Type: String
+    Description: 'Name of auto-scale group Launch Configuration'
+
+  ASGMIN:
+    Type: Number
+    Default: 1
+    Description: 'Minimum number of instances launched by auto-scale group'
+
+  ASGMAX:
+    Type: Number
+    Default: 1
+    Description: 'Maximum number of instances launched by auto-scale group'
+
+  AMI:
+    Type: AWS::EC2::Image::Id
+    Description: 'The EC2 AMI image id to use'
+
+  ConfigFileName:
+    Type: String
+    Description: 'UserData config file to run during instance launch'
+
+  ConfigFileS3Bucket:
+    Type: String
+    Description: 'S3 bucket that ConfigFile is stored in'
+
+  RDSCFTName:
+    Type: String
+    Description: 'MySQL RDS cloudformation template name (to retrieve host endpoint)'
+
+Resources:
+  LogRoleInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+      - !Ref InstanceRole
+  WebserverLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      AssociatePublicIpAddress: false
+      ImageId: !Ref AMI
+      SecurityGroups: 
+        - !Ref ApplicationSecurityGroup
+      InstanceType: 
+        Ref: InstanceType
+      BlockDeviceMappings:
+      - DeviceName: "/dev/sda1"
+        Ebs:
+          DeleteOnTermination: true
+          VolumeSize: !Ref EbsSize
+      KeyName: !Ref KeyPair
+      IamInstanceProfile: !Ref LogRoleInstanceProfile
+      LaunchConfigurationName: !Ref ASGLaunchConfigurationName
+      UserData: 
+        Fn::Base64: !Sub 
+          - |
+            #!/bin/bash -ex
+            trap '/opt/aws/bin/cfn-signal -e 1 --region ${AWS::Region} --stack ${AWS::StackName} --resource WebserverServerGroup' ERR
+            cd /root
+            mkdir scripts
+            cd scripts
+            curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+            python get-pip.py
+            pip install --upgrade awscli
+            aws s3 cp s3://${ConfigFileS3Bucket}/${ConfigFileName} .
+            chmod +x ${ConfigFileName}
+            yum install -y dos2unix
+            dos2unix ${ConfigFileName}
+            ./${ConfigFileName} ${ALBTargetGroupARN} ${NameTag} ${RDSEndpoint}
+            /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource WebserverServerGroup
+          - RDSEndpoint:
+              Fn::ImportValue: 
+                !Sub '${RDSCFTName}-RDSMariaDBDatabaseEndpoint'
+
+  WebserverServerGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn: WebserverLaunchConfig
+    Properties:
+      VPCZoneIdentifier: [ !Ref InstanceSubnet1A, !Ref InstanceSubnet1B ]
+      LaunchConfigurationName: !Ref ASGLaunchConfigurationName
+      MinSize: !Ref ASGMIN
+      MaxSize: !Ref ASGMAX
+      Cooldown: '300'
+      HealthCheckGracePeriod: 300
+      HealthCheckType: EC2
+      TargetGroupARNs: 
+        - !Ref ALBTargetGroupARN
+      AutoScalingGroupName: !Ref ASGName
+
+Outputs:
+  InstanceId:
+    Description: The instance ID of the Webserver
+    Value: !Ref WebserverServerGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-InstanceId"

@@ -1,0 +1,59 @@
+- hosts: all
+  vars:
+    #AWS_ACCESS_KEY_ID:
+    #AWS_SECRET_ACCESS_KEY:
+    AWS_REGION: us-east-2
+    private_ca_cert_s3_bucket: s3bucketname
+    private_ca_cert_s3_object_file: certs/certificate.crt
+    private_ca_cert_file: certificate.crt
+    private_cert_s3_bucket: s3bucketname
+    private_cert_s3_object_cert_file: certs/certificate.p12
+    private_cert_file: certificate.p12
+    private_cert_password: changeme_privpass
+    script_s3_bucket: s3bucket
+    script_s3_object: ansible/WinRM-SwitchCert.ps1
+    script_file: WinRM-SwitchCert.ps1
+  tasks:
+  - name: Copy down Private CA cert file from S3 bucket
+    win_shell: Read-S3Object -BucketName {{ private_ca_cert_s3_bucket }} -Key {{ private_ca_cert_s3_object_file }} -File C:\{{ private_ca_cert_file }}
+  - name: Copy down Private cert file from S3 bucket
+    win_shell: Read-S3Object -BucketName {{ private_cert_s3_bucket }} -Key {{ private_cert_s3_object_cert_file }} -File C:\{{ private_cert_file }}
+  - name: Install Private CA certificate in Windows LocalMachine\Root certificate store
+    win_certificate_store:
+      key_storage: machine
+      path: C:\{{ private_ca_cert_file }}
+      state: present
+      store_location: LocalMachine
+      store_name: Root
+  - name: Install Private certificate in Windows LocalMachine\My store
+    win_certificate_store:
+      file_type: pkcs12
+      key_storage: machine
+      password: "{{ private_cert_password }}"
+      path: C:\{{ private_cert_file }}
+      state: present
+      store_location: LocalMachine
+      store_name: My
+    register: thumbprints
+  - name: Copy down WinRM switch certs file from S3 bucket
+    win_shell: Read-S3Object -BucketName {{ script_s3_bucket }} -Key {{ script_s3_object }} -File C:\{{ script_file }}
+  - name: Run WinRM switch certs script
+    win_shell: C:\{{ script_file }} -thumbprint {{ thumbprints.thumbprints }}
+    register: winrm_script
+  - name: Delete private CA cert file
+    win_file:
+      path: C:\{{ private_ca_cert_file }}
+      state: absent
+    register: delete_private_ca_file_output
+  - name: Delete private cert file
+    win_file:
+      path: C:\{{ private_cert_file }}
+      state: absent
+    register: delete_private_cert_file_output
+  - name: Delete WinRM switch cert script
+    win_file:
+      path: C:\{{ script_file }}
+      state: absent
+    register: delete_script_file_output
+  - name: Print all return values
+    debug: var=thumbprints.thumbprints, var=winrm_script.cmd, var=winrm_script.stdout, var=winrm_script.stderr, var=delete_private_ca_file_output.stdout, var=delete_private_ca_file_output.stderr, var=delete_private_cert_file_output.stdout, var=delete_private_cert_file_output.stderr, var=delete_script_file_output.stdout, var=delete_script_file_output.stderr

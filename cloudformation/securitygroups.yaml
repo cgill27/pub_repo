@@ -1,0 +1,146 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: 'Create security groups for the provided VPC'
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: 'Networking'
+        Parameters:
+          - VPCStackName
+          - DevOPSSecurityGroupName
+          - ALBSecurityGroupName
+          - WebserverSecurityGroupName
+          - RDSSecurityGroupName
+
+Parameters:
+  DevOPSSecurityGroupName:
+      Type: String
+      Default: ''
+      Description: 'DevOps security group name'
+
+  ALBSecurityGroupName:
+      Type: String
+      Default: ''
+      Description: 'ALB security group name'
+
+  WebserverSecurityGroupName:
+      Type: String
+      Default: ''
+      Description: 'Webserver security group name'
+
+  RDSSecurityGroupName:
+      Type: String
+      Default: ''
+      Description: 'RDS security group name'
+
+  VPCStackName:
+    Type: String
+    Description: 'The VPC stack name'
+
+Resources:
+  DevOPSSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties: 
+      VpcId: 
+        Fn::ImportValue: 
+          !Sub '${VPCStackName}-VPCId'
+      GroupName : !Join [ "-", [!Ref "AWS::Region", !Ref "DevOPSSecurityGroupName"] ]
+      GroupDescription: "Recommended settings for DevOps"
+
+      Tags:
+        - Key : Name
+          Value : !Join [ "-", [!Ref "AWS::Region", !Ref "DevOPSSecurityGroupName"] ]
+        - Key : GroupName
+          Value : !Join [ "-", [!Ref "AWS::Region", !Ref "DevOPSSecurityGroupName"] ]
+
+  ALBSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties: 
+      VpcId: 
+        Fn::ImportValue: 
+          !Sub '${VPCStackName}-VPCId'
+      GroupName : !Join [ "-", [!Ref "AWS::Region", !Ref "ALBSecurityGroupName"] ]
+      GroupDescription: "Recommended settings for ALB"
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 443
+        ToPort: 443
+        CidrIp: x.x.x.x/32
+        Description: description
+
+      Tags:
+        - Key : Name
+          Value : !Join [ "-", [!Ref "AWS::Region", !Ref "ALBSecurityGroupName"] ]
+        - Key : GroupName
+          Value : !Join [ "-", [!Ref "AWS::Region", !Ref "ALBSecurityGroupName"] ]
+
+  RDSSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties: 
+      VpcId: 
+        Fn::ImportValue: 
+          !Sub '${VPCStackName}-VPCId'
+      GroupName : !Join [ "-", [!Ref "AWS::Region", !Ref "RDSSecurityGroupName"] ]
+      GroupDescription: "Recommended settings for MySQL RDS"
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 3306
+        ToPort: 3306
+        CidrIp: x.x.x.x/26
+        Description: MySQL from Webservers
+        
+      Tags:
+        - Key : Name
+          Value : !Join [ "-", [!Ref "AWS::Region", !Ref "RDSSecurityGroupName"] ]
+        - Key : GroupName
+          Value : !Join [ "-", [!Ref "AWS::Region", !Ref "RDSSecurityGroupName"] ]
+
+  WebserverSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties: 
+      VpcId: 
+        Fn::ImportValue: 
+          !Sub '${VPCStackName}-VPCId'
+      GroupName : !Join [ "-", [!Ref "AWS::Region", !Ref "WebserverSecurityGroupName"] ]
+      GroupDescription: "Recommended settings for Webserver"
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: x.x.x.x/26
+        Description: Inbound web traffic
+
+      Tags:
+        - Key : Name
+          Value : !Join [ "-", [!Ref "AWS::Region", !Ref "WebserverSecurityGroupName"] ]
+        - Key : GroupName
+          Value : !Join [ "-", [!Ref "AWS::Region", !Ref "WebserverSecurityGroupName"] ]
+  
+Outputs:
+  DevOPSCreatedSecurityGroupId:
+    Description: "DevOPS Security Group Id"
+    Value: !GetAtt DevOPSSecurityGroup.GroupId
+    Export:
+      Name: !Sub "${AWS::StackName}-DevOPSCreatedSecurityGroupId"
+
+  ALBCreatedSecurityGroupId:
+    Description: "ALB Security Group Id"
+    Value: !GetAtt ALBSecurityGroup.GroupId
+    Export:
+      Name: !Sub "${AWS::StackName}-ALBCreatedSecurityGroupId"
+
+  RDSCreatedSecurityGroupId:
+    Description: "RDS Security Group Id"
+    Value: !GetAtt RDSSecurityGroup.GroupId
+    Export:
+      Name: !Sub "${AWS::StackName}-RDSCreatedSecurityGroupId"
+
+  WebserverCreatedSecurityGroupId:
+    Description: "Webserver Security Group Id"
+    Value: !GetAtt WebserverSecurityGroup.GroupId
+    Export:
+      Name: !Sub "${AWS::StackName}-WebserverCreatedSecurityGroupId"

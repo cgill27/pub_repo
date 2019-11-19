@@ -1,0 +1,83 @@
+- hosts: nginxhosts
+  gather_facts: true
+  vars:
+    #AWS_ACCESS_KEY_ID: 
+    #AWS_SECRET_ACCESS_KEY:
+    AWS_REGION: us-east-1
+    s3_bucket: s3bucketname
+    s3_object_cert_file: /certs/certificate.crt
+    s3_object_cert_key_file: /certs/certificate.key
+    s3_object_cert_chain_file: /certs/IntermediateCA.cer
+    s3_object_nginx_conf_file: /config-files/nginx_reverse_proxy_nginx-default
+    cert_file: certificate.crt
+    cert_key_file: certificate.key
+    cert_chain_file: IntermediateCA.cer
+    combined_cert_chain_file: certificate.chain.crt
+    nginx_cert_dir: /etc/ssl/certs
+    nginx_key_dir: /etc/ssl/private
+    nginx_chaincrt_dir: /etc/ssl/certs
+    nginx_snippets_dir: /etc/nginx/snippets
+    nginx_sites_avail_dir: /etc/nginx/sites-available
+    nginx_sites_avail_file: default
+    nginx_new_cert_conf_file: sslcert.conf
+  tasks:
+    - name: Adding existing user ansible to group staff so boto3 module can be loaded
+      user:
+        name: ansible
+        groups: staff
+        append: yes
+    - name: Ensure boto3 is available
+      become: true
+      #pip: name=boto3 state=present
+      pip: 
+        name: [ "boto3", "botocore" ]
+        extra_args: "--user"
+    - name: Copying down cert file from bucket
+      aws_s3:
+        bucket: "{{ s3_bucket }}"
+        object: "{{ s3_object_cert_file }}"
+        dest: "{{ nginx_cert_dir }}/{{ cert_file }}"
+        mode: get
+        #aws_access_key: "{{ AWS_ACCESS_KEY_ID }}"
+        #aws_secret_key: "{{ AWS_SECRET_ACCESS_KEY }}"
+        aws_region: "{{ AWS_REGION }}"
+        ignore_nonexistent_bucket: true
+    - name: Copying down key file from bucket
+      aws_s3:
+        bucket: "{{ s3_bucket }}"
+        object: "{{ s3_object_cert_key_file }}"
+        dest: "{{ nginx_key_dir }}/{{ cert_key_file }}"
+        mode: get
+        #aws_access_key: "{{ AWS_ACCESS_KEY_ID }}"
+        #aws_secret_key: "{{ AWS_SECRET_ACCESS_KEY }}"
+        aws_region: "{{ AWS_REGION }}"
+        ignore_nonexistent_bucket: true
+    - name: Copying down chain cert file from bucket
+      aws_s3:
+        bucket: "{{ s3_bucket }}"
+        object: "{{ s3_object_cert_chain_file }}"
+        dest: "{{ nginx_chaincrt_dir }}/{{ cert_chain_file }}"
+        mode: get
+        #aws_access_key: "{{ AWS_ACCESS_KEY_ID }}"
+        #aws_secret_key: "{{ AWS_SECRET_ACCESS_KEY }}"
+        aws_region: "{{ AWS_REGION }}"
+        ignore_nonexistent_bucket: true
+    - name: Concatenating certificate and chain file into new chain certificate
+      shell: cat "{{ nginx_cert_dir }}/{{ cert_file }}" "{{ nginx_chaincrt_dir }}/{{ cert_chain_file }}" >> "{{ nginx_cert_dir }}/{{ combined_cert_chain_file }}"
+      args:
+        creates: "{{ nginx_cert_dir }}/{{ combined_cert_chain_file }}"
+    - name: Creating new "{{ nginx_new_cert_conf_file }}" file
+      shell: echo "ssl_certificate {{ nginx_cert_dir }}/{{ combined_cert_chain_file }};" > "{{ nginx_snippets_dir }}/{{ nginx_new_cert_conf_file }}" && echo "ssl_certificate_key {{ nginx_key_dir }}/{{ cert_key_file }};" >> "{{ nginx_snippets_dir }}/{{ nginx_new_cert_conf_file }}"
+      args:
+        creates: "{{ nginx_snippets_dir }}/{{ nginx_new_cert_conf_file }}" 
+    - name: Change nginx config file to use new certificate config file
+      lineinfile:
+        path: "{{ nginx_sites_avail_dir }}/{{ nginx_sites_avail_file }}"
+        regexp: "include snippets/self-signed.conf;"
+        line: "        include snippets/{{ nginx_new_cert_conf_file }};"
+        state: present
+        backrefs: yes
+    - name: Restart Nginx service 
+      service:
+        name: nginx
+        state: restarted

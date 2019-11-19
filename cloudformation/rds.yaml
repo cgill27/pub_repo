@@ -1,0 +1,128 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: 'rds mysql'
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: 'Amazon RDS Instance Configuration'
+        Parameters:
+          - RDSSubnets
+          - RDSSubnetGroupName
+          - RDSInstanceName
+          - RDSInstanceType
+          - RDSMultipleAZ
+          - RDSSecurityGroup
+
+Parameters:
+  RDSSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: 'Private data Subnet IDs to place RDS instance into, must contain at least two subnets in two different Availability Zones in the same region'
+
+  RDSSubnetGroupName:
+    Type: String
+    Description: 'RDS subnet group name'
+
+  RDSInstanceName:
+    Type: String
+    Description: 'RDS Instance Name'
+
+  RDSInstanceType:
+    Type: String
+    Default: db.t3.medium
+    AllowedValues:
+      - db.t3.medium
+      - db.t3.large
+      - db.t3.xlarge
+      - db.t3.2xlarge
+      - db.m5.large
+      - db.m5.xlarge
+      - db.m5.2xlarge
+      - db.m5.4xlarge
+      - db.r5.large
+      - db.r5.xlarge
+      - db.r5.2xlarge
+      - db.r5.4xlarge
+      - db.r5.12xlarge
+      - db.r5.24xlarge
+    Description: The RDS database instance type
+
+  RDSUser:
+    Type: String
+    Description: 'RDS instance master username'
+
+  RDSMultipleAZ:
+    Type: String
+    Default: false
+    AllowedValues: [true, false]
+    Description: RDS will be located in multiple availability zones
+
+  RDSSecurityGroup:
+    Type: List<AWS::EC2::SecurityGroup::Id>
+    Description: 'Instance Security Group ID(s)'
+
+Resources:
+  RDSMariaDBDatabase:
+    Type: 'AWS::RDS::DBInstance'
+    Properties:
+      AllocatedStorage: '100'
+      AllowMajorVersionUpgrade: false
+      AutoMinorVersionUpgrade: true
+      DBInstanceClass: !Ref RDSInstanceType
+      Port: '3306'
+      StorageType: gp2
+      BackupRetentionPeriod: 7
+      MasterUsername: !Ref RDSUser
+      MasterUserPassword: '{{resolve:ssm-secure:/development/rds-aws-master:1}}'
+      PreferredBackupWindow: '04:35-05:05'
+      PreferredMaintenanceWindow: 'mon:08:56-mon:09:26'
+      DBInstanceIdentifier: !Join [ "-", [!Ref "AWS::Region", !Ref "RDSInstanceName"] ]
+      Engine: mariadb
+      EngineVersion: 10.1.34
+      LicenseModel: general-public-license
+      DBSubnetGroupName: !Join [ "-", [!Ref "AWS::Region", !Ref "RDSSubnetGroupName"] ]
+      DBParameterGroupName: !Ref RDSParameterGroup
+      MultiAZ: !Ref RDSMultipleAZ
+      PubliclyAccessible: false
+      VPCSecurityGroups: !Ref RDSSecurityGroup
+      Tags:
+        - Key: Name
+          Value:
+            !Join [ "-", [!Ref "AWS::Region", !Ref "RDSInstanceName"] ]
+
+  RDSParameterGroup:
+    Type: 'AWS::RDS::DBParameterGroup'
+    Properties:
+      Description: MariaDB Parameter Group
+      Family: mariadb10.1
+      Parameters:
+        binlog_cache_size: '32768'
+        binlog_format: MIXED
+        character_set_client: utf8
+        character_set_database: utf8
+        character_set_server: utf8
+        collation_connection: utf8_general_ci
+        collation_server: utf8_general_ci
+      Tags:
+        - Key: Name
+          Value:
+            !Join [ "-", [!Ref "AWS::Region", !Ref "RDSInstanceName"] ]
+
+  RDSSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties: 
+      DBSubnetGroupDescription: RDS database subnet group
+      DBSubnetGroupName: !Join [ "-", [!Ref "AWS::Region", !Ref "RDSSubnetGroupName"] ]
+      SubnetIds: !Ref RDSSubnets
+      Tags:
+          - Key: Name
+            Value:
+              !Join [ "-", [!Ref "AWS::Region", !Ref "RDSSubnetGroupName"] ]
+
+Outputs:
+    RDSMariaDBDatabaseEndpoint:
+      Description: MariaDB Database endpoint
+      Value: !Sub "${RDSMariaDBDatabase.Endpoint.Address}:${RDSMariaDBDatabase.Endpoint.Port}"
+      Export:
+        Name: !Sub "${AWS::StackName}-RDSMariaDBDatabaseEndpoint"

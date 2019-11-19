@@ -1,0 +1,29 @@
+- hosts: all
+  tasks:
+    - name: Make sure inventory file exists
+      stat:
+        path: "{{ inventoryfile }}"
+      register: f
+    #- debug:
+    #    msg: "Inventory file exists and is a file"
+    #  when: f.stat.isreg is defined and f.stat.isreg
+    - debug:
+        msg: "Inventory file exists"
+      when: f.stat.exists == True
+    - debug:
+        msg: "Inventory file does not exist!"
+      when: f.stat.exists == False
+    - meta: end_play
+      when: f.stat.exists == False
+    - name: Modify inventory file with secrets manager secrets
+      shell: |
+        ADUSER=`aws --region {{ AWS_REGION }} secretsmanager get-secret-value --secret-id {{ secretid }} | python -c "import sys, json; print json.load(sys.stdin)['SecretString']" | python -c "import sys, json; print json.load(sys.stdin)['ansible-ad-username']"`
+        ADPASS=`aws --region {{ AWS_REGION }} secretsmanager get-secret-value --secret-id {{ secretid }} | python -c "import sys, json; print json.load(sys.stdin)['SecretString']" | python -c "import sys, json; print json.load(sys.stdin)['ansible-ad-password']"`
+        ADDOMAIN=`aws --region {{ AWS_REGION }} secretsmanager get-secret-value --secret-id {{ secretid }} | python -c "import sys, json; print json.load(sys.stdin)['SecretString']" | python -c "import sys, json; print json.load(sys.stdin)['ansible-ad-domain']"`
+        ADUSERDOMAIN="${ADDOMAIN}\\\\${ADUSER}"
+        sed -i "s/changeme_user/${ADUSERDOMAIN}/g" "{{ inventoryfile }}"
+        if [ $? -ne 0 ]; then exit 2; fi
+        sed -i "s/changeme_password/${ADPASS}/g" "{{ inventoryfile }}"
+        if [ $? -ne 0 ]; then exit 2; fi
+
+        exit 0

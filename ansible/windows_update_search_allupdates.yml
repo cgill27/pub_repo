@@ -1,0 +1,21 @@
+---
+- hosts: win
+
+  tasks:
+  - name: Install all security updates with automatic reboots
+    win_updates:
+      category_names:
+        - SecurityUpdates
+        - CriticalUpdates
+        - UpdateRollups
+        - DefinitionUpdates
+        - WindowsDefender
+        - Updates
+      log_path: C:\ansible_wu.txt
+      reboot: yes
+      reboot_timeout: 3600
+  # One way to ensure the system is reliable just after a reboot, is to set WinRM to a delayed startup
+  - name: Ensure WinRM starts when the system has settled and is ready to work reliably
+    win_service:
+      name: WinRM
+      start_mode: delayed
